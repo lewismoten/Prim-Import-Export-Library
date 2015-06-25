@@ -395,9 +395,9 @@ default
         addParams(WriteTextureMaps());
         addParams(WriteTextures());
         
-        llOwnerSay("llSetPrimitiveParams([" + trimComma(WritePosition()) + "]);");
+        llOwnerSay("\t\t\tllSetPrimitiveParams([" + trimComma(WritePosition()) + "]);");
  
-        llOwnerSay("while(llGetPos() != " + WriteVector(llGetPos()) + ") llSetPos(" + WriteVector(llGetPos()) + ");");
+        llOwnerSay("\t\t\twhile(llGetPos() != " + WriteVector(llGetPos()) + ") llSetPos(" + WriteVector(llGetPos()) + ");");
         
         llOwnerSay("\t}\n}");
  
