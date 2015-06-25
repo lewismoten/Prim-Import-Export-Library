@@ -163,7 +163,9 @@ string WritePrimRotation()
 string WriteSize()
 {
     list params = llGetPrimitiveParams([PRIM_SIZE]);
-    return "PRIM_SIZE, " + WriteVector(llList2Vector(params, 0)) + ", ";
+    vector v = llList2Vector(params, 0);
+    if(v == <0.5, 0.5, 0.5>) return "";
+    return "PRIM_SIZE, " + WriteVector(v) + ", ";
 }
 string WriteTempOnRez()
 {
@@ -382,7 +384,7 @@ default
         addParams(WritePhysics());
         addParams(WritePointLight());
         addParams(WritePrimRotation());
-        llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteSize()) + "]);");
+        addParams(WriteSize());
         addParams(WriteTempOnRez());
         addParams(WriteFullBrights());
         llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteAllColors()) + "]);");
