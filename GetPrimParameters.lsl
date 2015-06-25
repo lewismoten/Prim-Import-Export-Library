@@ -54,6 +54,7 @@ string WriteAllColors()
     list params = llGetPrimitiveParams([PRIM_COLOR, ALL_SIDES]);
     if(AllFacesSame(params, 2))
     {
+        if(isSameList(llList2List(params, 1, 2), [1.0, <1, 1, 1>])) return ""; 
         s += WriteColor(0, params, "ALL_SIDES") + ", ";
     }
     else
@@ -387,7 +388,7 @@ default
         addParams(WriteSize());
         addParams(WriteTempOnRez());
         addParams(WriteFullBrights());
-        llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteAllColors()) + "]);");
+        addParams(WriteAllColors());
         addParams(WriteTextureMaps());
         addParams(WriteTextures());
         
