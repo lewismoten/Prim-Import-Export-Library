@@ -373,8 +373,10 @@ default
         
         llSetObjectName("");
         llOwnerSay("default\n{\n\tstate_entry()\n\t{");
+        
+        llOwnerSay("\t\t\t// Link " + (string)llGetLinkNumber() + " of " +(string) llGetNumberOfPrims() + " prims");
 
-        llOwnerSay("\t\t\tllSetObjectName(\"" + name + "\");");
+        if(name != "") llOwnerSay("\t\t\tllSetObjectName(\"" + name + "\");");
         
         if(desc != "") llOwnerSay("llSetObjectDesc(\"" + desc + "\");");
         
