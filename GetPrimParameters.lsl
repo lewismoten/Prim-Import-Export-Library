@@ -135,6 +135,8 @@ string WritePhysics()
 string WritePointLight()
 {
     list params = llGetPrimitiveParams([PRIM_POINT_LIGHT]);
+    if(isSameList(params, [FALSE, ZERO_VECTOR, 0.0, 0.0, 0.0])) return "";
+    
     string s = "PRIM_POINT_LIGHT, " + WriteBoolean(llList2Integer(params, 0)) + ", ";
     s += WriteVector(llList2Vector(params, 1)) + ", ";
     s += WriteFloat(llList2Float(params, 2), FALSE) + ", ";
@@ -372,7 +374,7 @@ default
         addParams(WriteMaterial());
         addParams(WritePhantom());
         addParams(WritePhysics());
-        llOwnerSay("llSetPrimitiveParams([" + trimComma(WritePointLight()) + "]);");
+        addParams(WritePointLight());
        
         llOwnerSay("llSetPrimitiveParams([" + trimComma(WritePrimRotation()) + "]);");
         llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteSize()) + "]);");
