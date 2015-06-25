@@ -4,6 +4,8 @@ string WriteAllShiny()
     list params = llGetPrimitiveParams([PRIM_BUMP_SHINY, ALL_SIDES]);
     if(AllFacesSame(params, 2))
     {
+        if(isSameList(llList2List(params, 1, 2), [0, 0])) return "";
+        
         return WriteShiny(0, params, "ALL_SIDES");
     }
     else
@@ -74,6 +76,8 @@ string WriteColor(integer i, list params, string face)
 string WriteFlexible()
 {
     list params = llGetPrimitiveParams([PRIM_FLEXIBLE]);
+    if(isSameList(params, [FALSE, 0, 0.0, 0.0, 0.0, 0.0, ZERO_VECTOR])) return "";
+    
     string s = "PRIM_FLEXIBLE, ";
     s += WriteBoolean(llList2Integer(params, 0)) + ", ";
     s += llList2String(params, 1) + ", ";
@@ -367,10 +371,8 @@ default
         
          llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteType()) + "]);");
  
-        llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteAllShiny()) + "]);");
-       
-        llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteFlexible()) + "]);");
-       
+        addParams(WriteAllShiny());
+        addParams(WriteFlexible());
         addParams(WriteMaterial());
         addParams(WritePhantom());
         addParams(WritePhysics());
