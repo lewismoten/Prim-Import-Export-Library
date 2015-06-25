@@ -230,7 +230,9 @@ string WriteTextureMaps()
     list params = llGetPrimitiveParams([PRIM_TEXGEN, ALL_SIDES]);
     if(AllFacesSame(params, 1))
     {
-        return WriteTextureMap(llList2Integer(params, 0), "ALL_SIDES");
+        integer type = llList2Integer(params, 0);
+        if(type == 0) return "";
+        return WriteTextureMap(type, "ALL_SIDES");
     }
     else
     {
@@ -377,8 +379,8 @@ default
         addParams(WriteTempOnRez());
         addParams(WriteFullBrights());
         llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteAllColors()) + "]);");
-        llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteTextureMaps()) + "]);");
-        llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteTextures()) + "]);");
+        addParams(WriteTextureMaps());
+        addParams(WriteTextures());
         
         llOwnerSay("llSetPrimitiveParams([" + trimComma(WritePosition()) + "]);");
  
