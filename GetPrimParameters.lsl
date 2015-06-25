@@ -172,6 +172,7 @@ string WriteTempOnRez()
 string WriteType()
 {
     list params = llGetPrimitiveParams([PRIM_TYPE]);
+    if(isSameList(params, [PRIM_TYPE_BOX, PRIM_HOLE_DEFAULT, <0, 1, 0>, 0.0, ZERO_VECTOR, <1, 1, 0>, ZERO_VECTOR])) return "";
     integer t = llList2Integer(params, 0);
     if(t == PRIM_TYPE_BOX) return "PRIM_TYPE, PRIM_TYPE_BOX, " + WriteType1(params);
     if(t == PRIM_TYPE_CYLINDER) return "PRIM_TYPE, PRIM_TYPE_CYLINDER, " + WriteType1(params);
@@ -369,8 +370,7 @@ default
         llOwnerSay("llSetObjectName(\"" + name + "\");");
         llOwnerSay("llSetObjectDesc(\"" + llGetObjectDesc() + "\");");
         
-         llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteType()) + "]);");
- 
+        addParams(WriteType());
         addParams(WriteAllShiny());
         addParams(WriteFlexible());
         addParams(WriteMaterial());
