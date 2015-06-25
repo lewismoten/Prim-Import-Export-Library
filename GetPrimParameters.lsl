@@ -156,7 +156,9 @@ string WritePosition()
 string WritePrimRotation()
 {
     list params = llGetPrimitiveParams([PRIM_ROTATION]);
-    return "PRIM_ROTATION, " + WriteRotation(llList2Rot(params, 0)) + ", ";
+    rotation rot = llList2Rot(params, 0);
+    if(rot == ZERO_ROTATION) return "";
+    return "PRIM_ROTATION, " + WriteRotation(rot) + ", ";
 }
 string WriteSize()
 {
@@ -310,10 +312,10 @@ string WriteHole(integer hole)
 string WriteRotation(rotation r)
 {
     if(r == ZERO_ROTATION) return "ZERO_ROTATION";
-    return "<" + WriteFloat(r.x, TRUE) + ", "
-    + WriteFloat(r.y, TRUE) + ", "
-    + WriteFloat(r.z, TRUE) + ", "
-    + WriteFloat(r.s, TRUE) + ">";
+    if(r == -ZERO_ROTATION) return "-ZERO_ROTATION";
+    
+    vector e = llRot2Euler(r) * RAD_TO_DEG;
+    return "llEuler2Rot(" + WriteVector(e) + " * DEG_TO_RAD)";
 }
 string WriteVector(vector v)
 {
@@ -356,19 +358,21 @@ string trimComma(string s)
 }
 addParams(string text) {
     if(text == "") return;
-    llOwnerSay("llSetPrimitiveParams([" + trimComma(text) + "]);");
+    llOwnerSay("\t\t\tllSetPrimitiveParams([" + trimComma(text) + "]);");
 }
 default
 {
     state_entry()
     {
         string name = llGetObjectName();
+        string desc = llGetObjectDesc();
         
         llSetObjectName("");
-        llOwnerSay("default\n{\nstate_entry()\n{");
+        llOwnerSay("default\n{\n\tstate_entry()\n\t{");
 
-        llOwnerSay("llSetObjectName(\"" + name + "\");");
-        llOwnerSay("llSetObjectDesc(\"" + llGetObjectDesc() + "\");");
+        llOwnerSay("\t\t\tllSetObjectName(\"" + name + "\");");
+        
+        if(desc != "") llOwnerSay("llSetObjectDesc(\"" + desc + "\");");
         
         addParams(WriteType());
         addParams(WriteAllShiny());
@@ -377,8 +381,7 @@ default
         addParams(WritePhantom());
         addParams(WritePhysics());
         addParams(WritePointLight());
-       
-        llOwnerSay("llSetPrimitiveParams([" + trimComma(WritePrimRotation()) + "]);");
+        addParams(WritePrimRotation());
         llOwnerSay("llSetPrimitiveParams([" + trimComma(WriteSize()) + "]);");
         addParams(WriteTempOnRez());
         addParams(WriteFullBrights());
@@ -390,7 +393,7 @@ default
  
         llOwnerSay("while(llGetPos() != " + WriteVector(llGetPos()) + ") llSetPos(" + WriteVector(llGetPos()) + ");");
         
-        llOwnerSay("}\n}");
+        llOwnerSay("\t}\n}");
  
         llSetObjectName(name);
     }
