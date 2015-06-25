@@ -90,9 +90,7 @@ string WriteFlexible()
     return s;
 }
 integer isSameList(list list1, list list2) {
-    if(list1 != list2) return FALSE;
-    if(list1 == []) return TRUE;
-    return !llListFindList(list1, list2);
+    return llList2CSV(list1) == llList2CSV(list2);
 }
 string WriteFullBrights()
 {
@@ -273,6 +271,9 @@ string WriteTextures()
     list params = llGetPrimitiveParams([PRIM_TEXTURE, ALL_SIDES]);
     if(AllFacesSame(params, 4))
     {
+        list l = llList2List(params, 0, 3);
+         if(isSameList(l, [TEXTURE_PLYWOOD, <1, 1, 0>, ZERO_VECTOR, 0.0])) return "";
+         
         return WriteTexture(0, params, "ALL_SIDES");
     }
     else
