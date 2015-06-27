@@ -1,323 +1,461 @@
-string out = "";
-list entities = [];
-
-XmlBegin()
+// helpers
+integer AllFacesSame(list params, integer chunkSize)
 {
-    out = "<?xml version=\"1.0\" ?>\n";
-    out += "<!DOCTYPE object SYSTEM \"object.dtd\">\n";
+    integer i;
+    integer n = llGetListLength(params);
+    list firstChunk = llList2List(params, 0, chunkSize - 1);
+    list buffer;
+    for(i = chunkSize; i < n; i += chunkSize)
+    {
+        buffer = llList2List(params, i, i + chunkSize - 1);
+        if(llListFindList(buffer, firstChunk) == -1)
+            return FALSE;
+    }
+    return TRUE;
+}
+string Rotation(rotation r)
+{
+    if(r == ZERO_ROTATION)
+        return "<r>";// shorthand
+    // replace comma-space delimiters with comma
+    return "<" 
+        + Float(r.x, TRUE) + ","
+        + Float(r.y, TRUE) + ","
+        + Float(r.z, TRUE) + ","
+        + Float(r.s, TRUE) + ">";
+}
+string Vector(vector v)
+{
+    if(v == ZERO_VECTOR)
+        return "<v>";// shorthand
+    // replace comma-space delimiters with comma
+    return "<"
+        + Float(v.x, TRUE) + ","
+        + Float(v.y, TRUE) + ","
+        + Float(v.z, TRUE) + ">";
+}
+string Float(float f, integer integerOk)
+{
+    // only get last 3 decimals
+    f = llCeil(f * 1000) * .001;
+    string s = (string)f;
     
-}
-integer XmlDepth()
-{
-    return llGetListLength(entities);
-}
-XmlOpenEntity(string name)
-{
-    string tail = llGetSubString(out, -1, -1);
-    if(tail == ">")
+    // remove 0's at end
+    while(llGetSubString(s, -1, -1) == "0")
+        s = llGetSubString(s, 0, -2);
+    
+    // if string ends with decimal
+    if(llGetSubString(s, -1, -1) == ".")
     {
-        out += "\n" + indent(XmlDepth());
+        // if we can show numbers without decimal point
+        if(integerOk)
+            // remove decimal
+            s = llGetSubString(s, 0, -2);
+        else
+            // add trailing 0
+            s+= "0";
     }
-    else if(tail == "\n")
+    // remove sign if number is 0
+    if(s == "-0") s== "0";
+    if(s == "-0.0") s = "0.0";
+    
+    return s;
+}
+string ByteToBase64(integer value)
+{
+    // value is between 0 "AA" and 255 "/w"
+    string text = llIntegerToBase64(value);
+    // AAAA??==
+    return llGetSubString(text, 4, 5);
+}
+
+// prim readers
+list Shinies()
+{
+    string s;
+    list params = llGetPrimitiveParams([PRIM_BUMP_SHINY, ALL_SIDES]);
+    
+    if(AllFacesSame(params, 2))
     {
-        out += indent(XmlDepth());
-    }
-    out += "<" + name + ">";
-    entities += [name];
-}
-XmlAddVector(vector v)
-{
-    XmlAddEntityWithFloat("x", v.x);
-    XmlAddEntityWithFloat("y", v.y);
-    XmlAddEntityWithFloat("z", v.z);
-}
-XmlAddRotation(rotation r)
-{
-    XmlAddEntityWithFloat("x", r.x);
-    XmlAddEntityWithFloat("y", r.y);
-    XmlAddEntityWithFloat("z", r.z);
-    XmlAddEntityWithFloat("s", r.s);
-}
-XmlAddEntityWithFloat(string name, float f)
-{
-    if(f == (integer)f)
-    {
-        XmlAddEntityWithInteger(name, (integer)f);
+        return Shiny(0, params, ALL_SIDES);
     }
     else
     {
-        string t = (string)f;
-        while(llGetSubString(t, -1, -1) == "0")
-        {
-            t = llGetSubString(t, 0, -2);
-        }
-        XmlAddEntityWithText(name, t);
+        integer n = llGetListLength(params);
+        integer i;
+        integer j = 0;
+        list rules = [];
+        for(i = 0; i < n; i+= 2)
+            rules += Shiny(i, params, j++);
+        return rules;
     }
 }
-XmlAddEntityWithInteger(string name, integer i)
+list Shiny(integer i, list params, integer face)
 {
-    string t = (string)i;
-    XmlAddEntityWithText(name, t);
-}
-XmlAddEntityWithKey(string name, key k)
-{
-    string t = (string)k;
-    XmlAddEntityWithText(name, t);
-}
-XmlCloseEntity()
-{
+    if(llList2Integer(params, i) == PRIM_SHINY_NONE
+        && llList2Integer(params, i + 1) == PRIM_BUMP_NONE)
+        return [];
     
-    string name = llList2String(entities, -1);
-    entities = llDeleteSubList(entities, -1, -1);
-    string tail = llGetSubString(out, -1, -1);
-    if(tail == ">")
+    return [PRIM_BUMP_SHINY, face] + llList2List(params, i, i + 1);
+}
+list Colors()
+{
+    list params = llGetPrimitiveParams([PRIM_COLOR, ALL_SIDES]);
+    if(AllFacesSame(params, 2))
     {
-        out += "\n" + indent(XmlDepth());
+        return Color(0, params, ALL_SIDES);
     }
-    else if(tail == "\n")
+    else
     {
-        out += indent(XmlDepth());
-    }
-    out += "</" + name + ">\n";
-}
-XmlAddEntityWithText(string name, string text)
-{
-    XmlOpenEntity(name);
-    XmlWriteText(text);
-    XmlCloseEntity();
-}
-XmlAddEntityWithVector(string name, vector v)
-{
-    XmlOpenEntity(name);
-    XmlAddVector(v);
-    XmlCloseEntity();
-}
-XmlAddEntityWithRotation(string name, rotation r)
-{
-    XmlOpenEntity(name);
-    XmlAddRotation(r);
-    XmlCloseEntity();
-}
-XmlAddEntityWithBoolean(string name, integer isTrue)
-{
-    if(isTrue) XmlAddEntityWithText(name, "true");
-    else XmlAddEntityWithText(name, "false");
-}
-XmlWriteText(string text)
-{
-    text = XmlEncode(text);
-    if(llGetSubString(out, -1, -1) == ">")
-    {
-        out += text;
-    }
-    else if(llGetSubString(out, -2, -1) == "\n")
-    {
-        out += text + "\n";
+        integer n = llGetListLength(params);
+        integer i;
+        integer j = 0;
+        list rules = [];
+        for(i = 0; i < n; i+= 2)
+            rules += Color(i, params, j++);
+        return rules;
     }
 }
-string XmlEncode(string v)
+list Color(integer i, list params, integer face)
 {
-    return v;
+    list params = llList2List(params, i, i + 1);
+    if(llListFindList(params, [<1,1,1>, 1.0]) == 0) return [];
+    return [PRIM_COLOR, face] + params;
 }
-string XmlEntity(string name, string innerXml)
+list Flexible()
 {
-    if(innerXml == "")
+    list params = llGetPrimitiveParams([PRIM_FLEXIBLE]);
+    if(llListFindList(params, [0, 2, 0.3, 2.0, 0.0, 1.0, ZERO_VECTOR]) == 0) return [];
+    return [PRIM_FLEXIBLE] + params;
+}
+list FullBrights()
+{
+    list params = llGetPrimitiveParams([PRIM_FULLBRIGHT, ALL_SIDES]);
+    if(AllFacesSame(params, 1))
     {
-        return "<" + name + "/>";
+        if(llList2Integer(params, 0) == FALSE) return [];
+        return [PRIM_FULLBRIGHT, ALL_SIDES, TRUE];
     }
-    return "<" + name + ">" + innerXml + "</" + name + ">";
-}
-string indent(integer depth)
-{
-    string xml = "";
-    integer i = 0;
-    for(i = 0; i < depth; i++) xml += "\t";
-    return xml;
-}
-XmlOut()
-{
-    while(out != "")
+    else
     {
-        if(llStringLength(out) > 1024)
-        {
-            string part = "";
-            integer exit= FALSE;
-            do
-            {
-                integer i = llSubStringIndex(out, "\n");
-                if(i == -1)
-                {
-                    exit = TRUE;
-                }
-                if(i + llStringLength(part) > 1024)
-                {
-                    exit = TRUE;
-                }
-                else
-                {
-                    part += llGetSubString(out, 0, i);
-                    out = llGetSubString(out, i + 1, -1);
-                }
-            } while(!exit);
-            
-            if(part == "")
-            {
-                part = llGetSubString(out, 0, 1023);
-                out = llGetSubString(out, 1024, -1);
-            }
-            
-            llOwnerSay(part);
-        }
-        else
-        {
-            llOwnerSay(out);
-            out = "";
-        }
+        integer n = llGetListLength(params);
+        integer i;
+        list rules = [];
+        for(i = 0; i < n; i++)
+            if(llList2Integer(params, i) == TRUE)
+                rules += [PRIM_FULLBRIGHT, i, llList2Integer(params, i)];
+        return rules;
     }
 }
-XmlAddPrimType()
+list Material()
 {
-    XmlOpenEntity("type");
+    list params = llGetPrimitiveParams([PRIM_MATERIAL]);
+    if(llList2Integer(params, 0) == PRIM_MATERIAL_WOOD) return []; // default
+    return [PRIM_MATERIAL] + params;
+}
+list Phantom()
+{
+    list params = llGetPrimitiveParams([PRIM_PHANTOM]);
+    if(llList2Integer(params, 0) == FALSE) return []; // default
+    return [PRIM_PHANTOM, TRUE];
+}
+list Physics()
+{
+    list params = llGetPrimitiveParams([PRIM_PHYSICS]);
+    if(llList2Integer(params, 0) == FALSE) return [];
+    return [PRIM_PHYSICS, TRUE];
+}
+list PointLight()
+{
+    list params = llGetPrimitiveParams([PRIM_POINT_LIGHT]);
+    if(llListFindList(params, [0, <1.0, 1.0, 1.0>, 1.0, 10.0, 0.75]) == 0) return [];
+    return [PRIM_POINT_LIGHT] + params;
+}
+list PrimRotation()
+{
+    list params = llGetPrimitiveParams([PRIM_ROTATION]);
+    if(llList2Rot(params, 0) == ZERO_ROTATION) return [];
+    return [PRIM_ROTATION] + params;
+}
+list Size()
+{
+    list params = llGetPrimitiveParams([PRIM_SIZE]);
+    if(llList2Vector(params, 0) == <0.5, 0.5, 0.5>) return [];
+    return [PRIM_SIZE] + params;
+}
+list TempOnRez()
+{
+    list params = llGetPrimitiveParams([PRIM_TEMP_ON_REZ]);
+    if(llList2Integer(params, 0) == FALSE) return [];
+    return [PRIM_TEMP_ON_REZ, TRUE];
+}
+list Type()
+{
     list params = llGetPrimitiveParams([PRIM_TYPE]);
-    integer type = llList2Integer(params, 0);
-    XmlAddEntityWithText("name", TypeName(type));
-    if(type == PRIM_TYPE_BOX
-        || type == PRIM_TYPE_CYLINDER
-        || type == PRIM_TYPE_PRISM)
-    {
-        XmlAddEntityWithText("hole_shape", HoleShape(llList2Integer(params, 1)));
-        XmlAddEntityWithVector("cut", llList2Vector(params, 2));
-        XmlAddEntityWithFloat("hollow", llList2Float(params, 3));
-        XmlAddEntityWithVector("twist", llList2Vector(params, 4));
-        XmlAddEntityWithVector("top_size", llList2Vector(params, 5));
-        XmlAddEntityWithVector("top_shear", llList2Vector(params, 6));    
-    }
-    else if(type == PRIM_TYPE_SPHERE)
-    {
-        XmlAddEntityWithText("hole_shape", HoleShape(llList2Integer(params, 1)));
-        XmlAddEntityWithVector("cut", llList2Vector(params, 2));
-        XmlAddEntityWithFloat("hollow", llList2Float(params, 3));
-        XmlAddEntityWithVector("twist", llList2Vector(params, 4));
-        XmlAddEntityWithVector("dimple", llList2Vector(params, 5));
-    }
-    else if(type == PRIM_TYPE_TORUS
-        || type == PRIM_TYPE_TUBE
-        || type == PRIM_TYPE_RING)
-    {
-        XmlAddEntityWithText("hole_shape", HoleShape(llList2Integer(params, 1)));
-        XmlAddEntityWithVector("cut", llList2Vector(params, 2));
-        XmlAddEntityWithFloat("hollow", llList2Float(params, 3));
-        XmlAddEntityWithVector("twist", llList2Vector(params, 4));
-        XmlAddEntityWithVector("hole_size", llList2Vector(params, 5));
-        XmlAddEntityWithVector("top_shear", llList2Vector(params, 6));
-        XmlAddEntityWithVector("advanced_cut", llList2Vector(params, 6));
-        XmlAddEntityWithVector("taper", llList2Vector(params, 6));
-        XmlAddEntityWithFloat("revolutions", llList2Float(params, 6));
-        XmlAddEntityWithFloat("radius_offset", llList2Float(params, 6));
-        XmlAddEntityWithFloat("skew", llList2Float(params, 6));
-    }
-    else if(type == PRIM_TYPE_SCULPT)
-    {
-        integer flags = llList2Integer(params, 2);
-        XmlAddEntityWithText("map", llList2String(params, 1));
-        XmlAddEntityWithText("sculpt_type", SculptTypeName(flags));
-        XmlAddEntityWithBoolean("invert", isSet(flags, PRIM_SCULPT_FLAG_INVERT));
-        XmlAddEntityWithBoolean("mirror", isSet(flags, PRIM_SCULPT_FLAG_MIRROR));
-    }
-    XmlCloseEntity();
+    if(llListFindList(params, [0, 0, <0.0, 1.0, 0.0>, 0.0, ZERO_VECTOR, <1.0, 1.0, 0.0>, ZERO_VECTOR]) == 0) return [];
+    return [PRIM_TYPE] + params;
 }
-integer isSet(integer flags, integer flag)
+list TextureMaps()
 {
-    return (flags & flag) == flag;
-}
-string SculptTypeName(integer type)
-{
-    if(isSet(type, PRIM_SCULPT_FLAG_INVERT))
+    list params = llGetPrimitiveParams([PRIM_TEXGEN, ALL_SIDES]);
+    if(AllFacesSame(params, 1))
     {
-        type = type ^ PRIM_SCULPT_FLAG_INVERT;
+        return TextureMap(llList2Integer(params, 0), ALL_SIDES);
     }
-    if(isSet(type, PRIM_SCULPT_FLAG_MIRROR))
+    else
     {
-        type = type ^ PRIM_SCULPT_FLAG_MIRROR;
+        integer n = llGetListLength(params);
+        integer i;
+        list rules = [];
+        for(i = 0; i < n; i++)
+            rules += TextureMap(llList2Integer(params, i), i);
+        return rules;
     }
-    if(type == PRIM_SCULPT_TYPE_SPHERE) return "Sphere";
-    if(type == PRIM_SCULPT_TYPE_TORUS) return "Torus";
-    if(type == PRIM_SCULPT_TYPE_PLANE) return "Plane";
-    if(type == PRIM_SCULPT_TYPE_CYLINDER) return "Cylinder";
-    return "Unrecognized";
 }
-string TypeName(integer type)
+list TextureMap(integer type, integer face)
 {
-    if(type == PRIM_TYPE_BOX) return "Box";
-    if(type == PRIM_TYPE_CYLINDER) return "Cylinder";
-    if(type == PRIM_TYPE_PRISM) return "Prism";
-    if(type == PRIM_TYPE_SPHERE) return "Sphere";
-    if(type == PRIM_TYPE_TORUS) return "Torus";
-    if(type == PRIM_TYPE_TUBE) return "Tube";
-    if(type == PRIM_TYPE_RING) return "Ring";
-    if(type == PRIM_TYPE_SCULPT) return "Sculpt";
-    return "Unrecognized";
+    if(type == 0) return [];
+    return [PRIM_TEXGEN, face, type];
 }
-string HoleShape(integer shape)
+list Textures()
 {
-    if(shape == PRIM_HOLE_DEFAULT) return "Default";
-    if(shape == PRIM_HOLE_CIRCLE) return "Circle";
-    if(shape == PRIM_HOLE_SQUARE) return "Square";
-    if(shape == PRIM_HOLE_TRIANGLE) return "Triangle";
-    return "Unrecognized";
+    string s;
+    list params = llGetPrimitiveParams([PRIM_TEXTURE, ALL_SIDES]);
+    if(AllFacesSame(params, 4))
+    {
+        return Texture(0, params, ALL_SIDES);
+    }
+    else
+    {
+        integer n = llGetListLength(params);
+        integer i;
+        integer j = 0;
+        list rules = [];
+        for(i = 0; i < n; i += 4)
+            rules += Texture(i, params, j++);
+        return rules;
+    }
+}
+list Texture(integer i, list params, integer face)
+{
+    params = llList2List(params, i, i + 3);
+    list defaultParams = [(key)"89556747-24cb-43ed-920b-47caed15465f", <1.0, 1.0, 0.0>, ZERO_VECTOR, 0.0];
+    if(llListFindList(params, defaultParams) == 0) return [];
+    return [PRIM_TEXTURE, face] + params;
+}
+integer OwnerDetected(integer num_detected)
+{
+    integer i;
+    integer ownerTouched = FALSE;
+    for(i = 0; i < num_detected; i++)
+    {
+        if(llDetectedKey(i) != llGetOwner())
+            llInstantMessage(llDetectedKey(i), "Undergoing preperations for export. Please refrain from interacting with me.");
+        else
+            ownerTouched = TRUE;
+    }
+    return ownerTouched;
+}
+vector OffsetPos()
+{
+    vector pos = ZERO_VECTOR;
+    // root prim is always zero
+    
+    // if we are not the root prim
+    if(llGetLinkNumber() != 1)
+    {
+        // find position within world
+        list posParams = llGetPrimitiveParams([PRIM_POSITION]);
+        pos = llList2Vector(posParams, 0);
+        
+        // get relative position to root (within sim)
+        pos -= llGetRootPosition();
+    }
+    
+    return pos;
 }
 default
 {
+    state_entry()
+    {
+        if(llGetLinkNumber() == 2)
+        {
+            llOwnerSay("Once the scripts are running, drop SourcePrimExporter.lsl into the object.");
+        }
+    }
     touch_start(integer num_detected)
     {
-        if(llDetectedKey(0) != llGetOwner()) return;
         
-        key id = llGetKey();
+        // cancel if owner not detected
+        if(!OwnerDetected(num_detected)) return;
         
-        XmlBegin();
-        XmlOpenEntity("object");
-
-        XmlOpenEntity("details");
-
-        XmlAddEntityWithKey("key", id);
-        XmlAddEntityWithText("name", llGetObjectName());
-        XmlAddEntityWithText("description", llGetObjectDesc());
-        XmlAddEntityWithInteger("link_number", llGetLinkNumber());
+        // This is for debug purposes, so lets be verbose
         
-        key creatorId = llGetCreator();
-        XmlOpenEntity("creator");
-        XmlAddEntityWithKey("key", creatorId);
-        XmlOpenEntity("name");
-        XmlAddEntityWithText("legacy", llKey2Name(creatorId));
-        XmlAddEntityWithText("user", llGetUsername(creatorId));
-        XmlAddEntityWithText("display", llGetDisplayName(creatorId));
-        XmlCloseEntity();
-        XmlCloseEntity();
+        vector pos = OffsetPos();
         
-        XmlCloseEntity();
+        llOwnerSay("<child number=\"" + (string)llGetLinkNumber() + "\">");
+        llOwnerSay("<position x=\"" + (string)pos.x + "\" y=\"" + (string)pos.y + "\" z=\"" + (string)pos.z + "\" />");
         
-        XmlOpenEntity("position");
-        XmlAddEntityWithVector("local", llGetLocalPos());
-        XmlAddEntityWithVector("regional", llGetPos());
-        XmlAddEntityWithVector("root", llGetRootPosition());
-        XmlAddEntityWithVector("center_of_mass", llGetCenterOfMass());
-        XmlAddEntityWithVector("geometric_center", llGetGeometricCenter());
-        XmlCloseEntity();
+        llOwnerSay("Shinies: " + llList2CSV(Shinies()));
+        llOwnerSay("Colors: " + llList2CSV(Colors()));
+        llOwnerSay("Flexible: " + llList2CSV(Flexible()));
+        llOwnerSay("Full Brights: " + llList2CSV(FullBrights()));
+        llOwnerSay("Material: " + llList2CSV(Material()));
+        llOwnerSay("Phantom: " + llList2CSV(Phantom()));
+        llOwnerSay("Physics: " + llList2CSV(Physics()));
+        llOwnerSay("Light: " + llList2CSV(PointLight()));
+        llOwnerSay("Rotation: " + llList2CSV(PrimRotation()));
+        llOwnerSay("Size: " + llList2CSV(Size()));
+        llOwnerSay("Temporary: " + llList2CSV(TempOnRez()));
+        llOwnerSay("Building Block Type: " + llList2CSV(Type()));
+        llOwnerSay("Mapping: " + llList2CSV(TextureMaps()));
+        llOwnerSay("Textures: " + llList2CSV(Textures()));
         
-        XmlOpenEntity("rotation");
-        XmlAddEntityWithRotation("local", llGetLocalRot());
-        XmlAddEntityWithRotation("regional", llGetRot());
-        XmlAddEntityWithRotation("root", llGetRootRotation());
-        XmlCloseEntity();
-
-        XmlAddEntityWithVector("scale", llGetScale());
+        list rules = 
+            [
+                llGetLinkNumber(), 
+                llStringToBase64(llGetObjectName()), // encode commas
+                llStringToBase64(llGetObjectDesc()), // encode commas
+                pos
+            ] +
+            Shinies() + 
+            Colors() + 
+            Flexible() + 
+            FullBrights() + 
+            Material() + 
+            Phantom() + 
+            Physics() + 
+            PointLight() + 
+            PrimRotation() + 
+            Size() + 
+            TempOnRez() + 
+            Type() + 
+            TextureMaps() + 
+            Textures();
         
-        XmlOpenEntity("parameters");
-        XmlAddPrimType();
+        integer i;
+        integer n = llGetListLength(rules);
+        for(i = 0; i < n; i++)
+        {
+            integer type = llGetListEntryType(rules, i);
+            
+            if(type == TYPE_FLOAT)
+                rules = llListReplaceList(rules, [Float(llList2Float(rules, i), TRUE)], i, i);
+            else if(type == TYPE_VECTOR)
+                rules = llListReplaceList(rules, [Vector(llList2Vector(rules, i))], i, i);
+            else if(type == TYPE_ROTATION)
+                rules = llListReplaceList(rules, [Rotation(llList2Rot(rules, i))], i, i);
+        }
+        string msg = llList2CSV(rules);
+        integer p = 0;
         
-        XmlCloseEntity();
-        XmlCloseEntity();
+        while(msg != "")
+        {
+            if(llStringLength(msg) <= 75)
+            {
+                llSleep(5.0);// make short stuff appear at end
+                llInstantMessage(llGetOwner(), (string)p + "> " + msg);
+                msg = "";
+            }
+            else
+            {
+                llInstantMessage(llGetOwner(), (string)p + "> " + llGetSubString(msg, 0, 74));
+                msg = llGetSubString(msg, 75, -1);
+            }
+            p++;
+        }
         
-        XmlOut();
-     }
+        msg = llList2CSV(rules);
+        msg = llStringToBase64(msg);
+        string prefix = ByteToBase64(llGetLinkNumber());
+        p = 0;
+        while(msg != "")
+        {
+            if(llStringLength(msg) <= 75)
+            {
+                llSleep(5.0);// make short stuff appear at end
+                llInstantMessage(llGetOwner(),prefix + ByteToBase64(p) + msg);
+                msg = "";
+            }
+            else
+            {
+                llInstantMessage(llGetOwner(), prefix + ByteToBase64(p) + llGetSubString(msg, 0, 74));
+                msg = llGetSubString(msg, 75, -1);
+            }
+            p++;
+        }        
+    }
+    link_message(integer sender_num, integer num, string str, key id)
+    {
+        if(str != "Reveal") return;
+        
+        vector pos = ZERO_VECTOR;
+        if(llGetLinkNumber() != 1)
+        {
+            list posParams = llGetPrimitiveParams([PRIM_POSITION]);
+            pos = llList2Vector(posParams, 0);
+            pos -= llGetRootPosition();
+        }
+        
+        list rules = 
+            [
+                llGetLinkNumber(), 
+                llStringToBase64(llGetObjectName()), // encode commas
+                llStringToBase64(llGetObjectDesc()), // encode commas
+                pos
+            ] +
+            Shinies() + 
+            Colors() + 
+            Flexible() + 
+            FullBrights() + 
+            Material() + 
+            Phantom() + 
+            Physics() + 
+            PointLight() + 
+            PrimRotation() + 
+            Size() + 
+            TempOnRez() + 
+            Type() + 
+            TextureMaps() + 
+            Textures();
+        
+        integer i;
+        integer n = llGetListLength(rules);
+        for(i = 0; i < n; i++)
+        {
+            integer type = llGetListEntryType(rules, i);
+            
+            if(type == TYPE_FLOAT)
+                rules = llListReplaceList(rules, [Float(llList2Float(rules, i), TRUE)], i, i);
+            else if(type == TYPE_VECTOR)
+                rules = llListReplaceList(rules, [Vector(llList2Vector(rules, i))], i, i);
+            else if(type == TYPE_ROTATION)
+                rules = llListReplaceList(rules, [Rotation(llList2Rot(rules, i))], i, i);
+        }
+        string msg = llList2CSV(rules);
+        
+        string name = llGetObjectName();
+        llSetObjectName("Export");
+        string prefix = ByteToBase64(llGetLinkNumber());
+        integer p = 0;
+        msg = llStringToBase64(msg);
+        while(msg != "")
+        {
+            if(llStringLength(msg) <= 75)
+            {
+                llSleep(5.0);// make short stuff appear at end
+                llInstantMessage(llGetOwner(),prefix + ByteToBase64(p) + msg);
+                msg = "";
+            }
+            else
+            {
+                llInstantMessage(llGetOwner(), prefix + ByteToBase64(p) + llGetSubString(msg, 0, 74));
+                msg = llGetSubString(msg, 75, -1);
+            }
+            p++;
+        }
+        llSetObjectName(name);
+        
+       // llRemoveInventory(llGetScriptName());
+    }
 }
