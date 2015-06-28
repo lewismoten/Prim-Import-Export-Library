@@ -1,5 +1,8 @@
 integer UNKNOWN = 0xFFFFFFFF;
 
+// TODO: llGetLinkMedia
+
+
 list rules = [
     PRIM_NAME, 
     PRIM_DESC,
@@ -37,8 +40,7 @@ add(integer indent, string text) {
     llOwnerSay(text);
 }
 
-writeScript(list params, list data, list linkSides, integer primCount) {
-    
+openScript(integer primCount) {
     add(0, "default");
     add(0, "{");
     add(1, "state_entry()");
@@ -48,24 +50,14 @@ writeScript(list params, list data, list linkSides, integer primCount) {
     add(3, "llOwnerSay(\"Object must have " + (string)primCount + " prims\");");
     add(3, "return;");
     add(2, "}");
-    add(2, "");        
-    add(2, "llSetLinkPrimitiveParamsFast(LINK_ROOT, [");
-    
-    integer link = LINK_ROOT;
-    integer dataLength = llGetListLength(data);
-    integer dataPosition = 0;
-    while(dataPosition < dataLength) {
-        add(3, "PRIM_LINK_TARGET, " + (string)link + ",");
-        integer sides = llList2Integer(linkSides, link - 1);
-        dataPosition += writeLink(params, llList2List(data, dataPosition, -1), sides); 
-        link++;
-    }
-    
-    add(3, "PRIM_LINK_TARGET, LINK_ROOT");
-    add(2, "]);");
+    add(2, "");  
+}
+
+closeScript() {
     add(1, "}");
     add(0, "}");
 }
+
 
 integer writeLink(list params, list data, integer sides) {
     
@@ -509,6 +501,24 @@ string ruleName(integer r) {
     "ALPHA_MODE", ""
     ], i);
 }
+
+writeScript(list params, list data, integer sides) {
+    
+    add(2, "llSetLinkPrimitiveParamsFast(LINK_ROOT, [");
+    
+    integer link = LINK_ROOT;
+    integer dataLength = llGetListLength(data);
+    integer dataPosition = 0;
+    while(dataPosition < dataLength) {
+        add(3, "PRIM_LINK_TARGET, " + (string)link + ",");
+        dataPosition += writeLink(params, llList2List(data, dataPosition, -1), sides); 
+        link++;
+    }
+    
+    add(3, "PRIM_LINK_TARGET, LINK_ROOT");
+    add(2, "]);");
+}
+
 default
 {
     state_entry()
@@ -518,13 +528,27 @@ default
         integer primCount = llGetNumberOfPrims();
         list allParams = [];
         
+        openScript(primCount);
+        
         for(link = LINK_ROOT; link <= primCount; link++) {
-            linkSides += [llGetLinkNumberOfSides(link)];
-            allParams = allParams + [PRIM_LINK_TARGET, link] + rules;
+            //linkSides += [llGetLinkNumberOfSides(link)];
+            //allParams = allParams + [PRIM_LINK_TARGET, link] + rules;
+            list data = llGetLinkPrimitiveParams(link,rules);
+            integer linkSides = llGetLinkNumberOfSides(link);
+            add(2, "llSetLinkPrimitiveParamsFast(" + (string)link + ", [");
+            
+            writeLink(rules, data, linkSides);
+            
+            add(3, "PRIM_LINK_TARGET, " + (string)link);
+            add(2, "]);");
+            
+            llSleep(1.0);
         }
        
-        list data = llGetLinkPrimitiveParams(LINK_ROOT,allParams);
+        //list data = llGetLinkPrimitiveParams(LINK_ROOT,allParams);
         
-        writeScript(rules, data, linkSides, primCount);
+        //writeScript(rules, data, linkSides, primCount);
+        
+        closeScript();
     }
 }
