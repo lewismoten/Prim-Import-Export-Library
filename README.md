@@ -1,3 +1,5 @@
+![Prim-Import-Export-Library: Second Life prim export/import](docs/images/social-preview.png)
+
 # Prim-Import-Export-Library
 
 Scripts in Linden Scripting Language (LSL) for exporting objects ("prims") from Second Life and rebuilding them elsewhere, written in 2015.
